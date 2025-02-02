@@ -1,55 +1,60 @@
-import numpy as np
+states = ['Rainy', 'Sunny', 'Cloudy']
+actions = ['Umbrella', 'No Umbrella']
 
-# Define MDP components
-states = ['Town', 'Castle', 'Dungeon', 'Market']  # Set of states
-actions = ['fight', 'trade']  # Possible actions
-
-discount_factor = 0.9  # Discount factor for future rewards
-
-# Transition probabilities (state, action) -> [(prob, next_state, reward)]
 transitions = {
-    ('Town', 'fight'): [(1.0, 'Dungeon', 5)],
-    ('Town', 'trade'): [(1.0, 'Market', 3)],
-    ('Castle', 'fight'): [(1.0, 'Dungeon', 6)],
-    ('Castle', 'trade'): [(1.0, 'Market', 4)],
-    ('Dungeon', 'fight'): [(1.0, 'Castle', 7)],
-    ('Dungeon', 'trade'): [(1.0, 'Market', 2)],
-    ('Market', 'fight'): [(1.0, 'Town', 3)],
-    ('Market', 'trade'): [(1.0, 'Market', 0)],
+    'Rainy': {'Rainy': 0.6, 'Sunny': 0.2, 'Cloudy': 0.2},
+    'Sunny': {'Rainy': 0.1, 'Sunny': 0.7, 'Cloudy': 0.2},
+    'Cloudy': {'Rainy': 0.3, 'Sunny': 0.5, 'Cloudy': 0.2}
 }
 
-# Random policy (50% probability of choosing fight or trade in each state)
-policy = {
-    'Town': {'fight': 0.5, 'trade': 0.5},
-    'Castle': {'fight': 0.5, 'trade': 0.5},
-    'Dungeon': {'fight': 0.5, 'trade': 0.5},
-    'Market': {'fight': 0.5, 'trade': 0.5},
-}
+def reward(s, a, s_prime):
+    if a == 'Umbrella':
+        return 1 if s_prime == 'Rainy' else -1
+    else:  # No Umbrella
+        return -10 if s_prime == 'Rainy' else 1
 
-# Initialize value function
 V = {s: 0 for s in states}
+gamma = 0.9  
+theta = 1e-6  
 
-def policy_evaluation(policy, V, theta=0.0001):
-    """Evaluate a policy using iterative updates."""
-    while True:
-        delta = 0
-        new_V = V.copy()
-        for s in states:
-            v = 0
-            for a, action_prob in policy[s].items():
-                for prob, next_state, reward in transitions[(s, a)]:
-                    v += action_prob * prob * (reward + discount_factor * V[next_state])
-            new_V[s] = v
-            delta = max(delta, abs(V[s] - v))
-        V = new_V
-        if delta < theta:
-            break
-    return V
 
-# Perform policy evaluation
-V = policy_evaluation(policy, V)
+while True:
+    delta = 0
+    V_new = {}
+    for s in states:
+        max_val = -float('inf')
+        for a in actions:
+            current_val = 0
+            for s_prime, prob in transitions[s].items():
+                r = reward(s, a, s_prime)
+                current_val += prob * (r + gamma * V[s_prime])
+            if current_val > max_val:
+                max_val = current_val
+        V_new[s] = max_val
+        delta = max(delta, abs(V[s] - V_new[s]))
+    if delta < theta:
+        break
+    V = V_new.copy()
 
-# Print final value function
-print("State values after policy evaluation:")
-for state, value in V.items():
-    print(f"V({state}) = {value:.2f}")
+policy = {}
+for s in states:
+    best_action = None
+    max_val = -float('inf')
+    for a in actions:
+        current_val = 0
+        for s_prime, prob in transitions[s].items():
+            r = reward(s, a, s_prime)
+            current_val += prob * (r + gamma * V[s_prime])
+        if current_val > max_val:
+            max_val = current_val
+            best_action = a
+    policy[s] = best_action
+
+
+print("Optimal Policy:")
+for s in states:
+    print(f"{s}: {policy[s]}")
+
+print("\nOptimal Value Function:")
+for s in states:
+    print(f"{s}: {V[s]:.4f}")
